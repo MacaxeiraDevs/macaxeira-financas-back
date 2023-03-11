@@ -1,37 +1,28 @@
-type User {
+type Usuario {
   id: ID! @unique
-  name: String!
+  nome: String!
   email: String! @unique
-  password: String!
+  senha: String!
 }
 
-type Account {
+enum Tipo {
+  RECEITA
+  DESPESA
+}
+
+type Categoria {
   id: ID! @unique
-  user: User
-  description: String!
+  usuario: Usuario
+  descricao: String!
+  tipo: Tipo!
 }
 
-enum Operation {
-  DEBIT
-  CREDIT
-}
-
-type Category {
+type Lancamento {
   id: ID! @unique
-  user: User
-  description: String!
-  operation: Operation!
-}
-
-type Record {
-  id: ID! @unique
-  user: User!
-  account: Account!
-  category: Category!
-  amount: Float!
-  type: Operation
-  date: DateTime!
-  description: String!
-  tags: String
-  note: String
+  usuario: Usuario!
+  tipo: Tipo!
+  categoria: Categoria!
+  valor: Float!
+  data: DateTime!
+  descricaoLancamento: String!
 }

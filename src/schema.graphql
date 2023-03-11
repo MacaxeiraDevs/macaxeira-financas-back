@@ -1,79 +1,65 @@
 scalar Date
 
 type Query {
-  accounts: [ Account! ]!
-  categories(operation: Operation): [ Category! ]!
-  records(
+  categorias(tipo: Tipo): [ Categoria! ]!
+  lancamentos(
     """
-      Month and Year, format "MM-YYYY" example: 06-2019
+      Mês e Ano: MM-YYYY
     """
-    month: String
-    type: Operation
-    accountsIds: [ ID! ]
-    categoriesIds: [ ID! ]
-  ): [ Record! ]!
-  user: User
+    mes: String
+    tipo: Tipo
+    categoriasIds: [ ID! ]
+  ): [ Lancamento! ]!
+  usuario: Usuario
   """
-    Year, Month and Day, format "YYYY-MM-DD" example: 2019-06-19
+    Ano, mês e dia: YYYY-MM-DD
   """
-  totalBalance(date: Date!): Float!
+  balancoTotal(data: Date!): Float!
 }
 
 type Mutation {
-  createAccount(description: String!): Account!
-  createCategory(description: String!, operation: Operation!): Category!
-  createRecord(
-    accountId: ID!
-    categoryId: ID!
-    amount: Float!
-    type: Operation
-    date: Date!
-    description: String!
-    tags: String
-    note: String
-  ): Record! 
-  login(email: String!, password: String!): AuthPayload
-  signup(email: String!, password: String!, name: String!): AuthPayload
+  createCategoria(descricao: String!, tipo: Tipo!): Categoria!
+  createLancamento(
+    categoriaId: ID!
+    valor: Float!
+    tipo: Tipo
+    data: Date!
+    descricaoLancamento: String!
+  ): Lancamento! 
+  login(email: String!, senha: String!): AuthPayload
+  registrar(email: String!, senha: String!, nome: String!): AuthPayload
 }
 
 type AuthPayload {
   token: String!
-  user: User!
+  usuario: Usuario!
 }
 
-type User {
+type Usuario {
   id: ID!
-  name: String!
+  nome: String!
   email: String!
 }
 
-type Account {
-  id: ID!
-  user: User
-  description: String!
+enum Tipo {
+  RECEITA
+  DESPESA
 }
 
-enum Operation {
-  DEBIT
-  CREDIT
+type Categoria {
+  id: ID!
+  usuario: Usuario
+  descricao: String!
+  tipo: Tipo!
 }
 
-type Category {
+type Lancamento {
   id: ID!
-  user: User
-  description: String!
-  operation: Operation!
+  usuario: Usuario!
+  tipo: Tipo!
+  categoria: Categoria!
+  valor: Float!
+  data: Date!
+  descricaoLancamento: String!
 }
 
-type Record {
-  id: ID!
-  user: User!
-  account: Account!
-  category: Category!
-  amount: Float!
-  type: Operation
-  date: Date!
-  description: String!
-  tags: String
-  note: String
-}

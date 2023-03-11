@@ -1,95 +1,64 @@
-const { getUserId } = require('./../utils')
+const { getUsuarioId } = require('./../utils')
 const moment = require('moment')
 
-function accounts(_, args, ctx, info){
-    const userId = getUserId(ctx)
-    return ctx.db.query.accounts({
-        where: {
-            OR: [
-                {
-                    user: {
-                        id: userId
-                    }
-                },
-                {
-                    user: null
-                }
-            ]
-        },
-        orderBy: 'description_ASC'
-    }, info)
-}
-
-function categories(_, { operation }, ctx, info){
-    const userId = getUserId(ctx)
+function categorias(_, { tipo }, ctx, info){
+    const usuarioId = getUsuarioId(ctx)
 
     let AND = [
         {
             OR: [
                 {
-                    user: {
-                        id: userId
+                    usuario: {
+                        id: usuarioId
                     }
                 },
                 {
-                    user: null
+                    usuario: null
                 }
             ]
         }
     ]
 
-    AND = !operation ? AND : [ ...AND, { operation: operation } ] //Como o argumento de operação não é obrigatório, então essa lógica precisa ser feita para que a consulta permita trazer com e sem o argumento "operation"
+    AND = !tipo ? AND : [ ...AND, { tipo: tipo } ] //Como o argumento de tipo não é obrigatório, então essa lógica precisa ser feita para que a consulta permita trazer com e sem o argumento "tipo"
 
-    return ctx.db.query.categories({
+    return ctx.db.query.categorias({
         where: { AND },
-        orderBy: 'description_ASC'
+        orderBy: 'descricao_ASC'
     }, info)
 }
 
-function records(_, { month, type, accountsIds, categoriesIds }, ctx, info){
-    const userId = getUserId(ctx)
+function lancamentos(_, { mes, tipo, categoriasIds }, ctx, info){
+    const usuarioId = getUsuarioId(ctx)
     let AND = [
-        { user: { id: userId } }
+        { usuario: { id: usuarioId } }
     ]
 
-    AND = !type ? AND : [ ...AND, { type } ]
-
-    AND = !accountsIds || accountsIds.length === 0 ? AND : 
-    [ ...AND, { OR: accountsIds.map(id => ({ account: { id }})) } ]
-    
-    AND = !categoriesIds || categoriesIds.length === 0 ? AND :
-    [ ...AND, { OR: categoriesIds.map(id => ({ account: { id }})) } ]
-
     //Buscando lançamentos em um intervalo de datas
-    if(month){
-        const date = moment(month, 'MM-YYYY') //Exemplo: 06-2019
-        const startDate = date.startOf('month').toISOString() //=> 01/06/2019T00:00...
-        const endDate = date.endOf('month').toISOString() //=> 30/06/2019T23:59...
+    if(mes){
+        const data = moment(mes, 'MM-YYYY') //Exemplo: 06-2019
+        const inicioData = data.startOf('month').toISOString()
+        const fimData = data.endOf('month').toISOString()
 
         AND = [
             ...AND,
-            { date_gte: startDate },
-            { date_lte: endDate }
+            { date_gte: inicioData },
+            { date_lte: fimData }
         ]
-        
-        console.log('Base Date: ', date.toISOString())
-        console.log('Start Date: ', startDate)
-        console.log('End Date: ', endDate)
     }
 
-    return ctx.db.query.records({
+    return ctx.db.query.lancamentos({
         where: { AND },
-        orderBy: 'date_ASC'
+        orderBy: 'data_ASC'
     }, info)
 }
 
-function totalBalance(_, { date }, ctx, info){
-    const userId = getUserId(ctx)
-    const dateISO = moment(date, 'YYYY-MM-DD').endOf('day').toISOString()
+function balancoTotal(_, { data }, ctx, info){
+    const usuarioId = getUsuarioId(ctx)
+    const dataISO = moment(data, 'YYYY-MM-DD').endOf('day').toISOString()
     const pgSchema = `${process.env.PRISMA_SERVICE}$${process.env.PRISMA_STAGE}`
 
     const mutation = `
-        mutation TotalBalance($database: PrismaDatabase, $query: String!) {
+        mutation BalancoTotal($database: PrismaDatabase, $query: String!) {
             executeRaw(database: $database, query: $query)
         }
     `
@@ -98,38 +67,33 @@ function totalBalance(_, { date }, ctx, info){
         database: 'default',
         query: `
             select 
-                sum("${pgSchema}"."Record"."amount") as totalbalance
+                sum("${pgSchema}"."Lancamento"."valor") as balancototal
             from 
-                "${pgSchema}"."Record"
-            inner join "${pgSchema}"."_RecordToUser"
-            on("${pgSchema}"."_RecordToUser"."A" = "${pgSchema}"."Record"."id")
-            where "${pgSchema}"."_RecordToUser"."B" = '${userId}'
-            and "${pgSchema}"."Record"."date" <= '${dateISO}';
+                "${pgSchema}"."Lancamento"
+            inner join "${pgSchema}"."_LancamentoToUsuario"
+            on("${pgSchema}"."_LancamentoToUsuario"."A" = "${pgSchema}"."Lancamento"."id")
+            where "${pgSchema}"."_LancamentoToUsuario"."B" = '${usuarioId}'
+            and "${pgSchema}"."Lancamento"."data" <= '${dataISO}';
         `
     }
 
-    console.log('pgSchema: ', pgSchema)
-    console.log('query: ', variables.query)
-
     return ctx.prisma.$graphql(mutation, variables)
         .then(response => {
-            console.log('Response: ', response)
-            const totalBalance = response.executeRaw[0].totalbalance
-            return totalBalance ? totalBalance : 0
+            const balancoTotal = response.executeRaw[0].balancototal
+            return balancoTotal ? balancoTotal : 0
         })
 }
 
-function user(_, args, ctx, info){ //ctx = context
-    const userId = getUserId(ctx)
-    return ctx.db.query.user({ where: { id: userId }}, info)
+function usuario(_, args, ctx, info){
+    const usuarioId = getUsuarioId(ctx)
+    return ctx.db.query.usuario({ where: { id: usuarioId }}, info)
 }
 
 module.exports = {
-    accounts: accounts,
-    categories: categories,
-    records: records,
-    totalBalance: totalBalance,
-    user: user
+    categorias,
+    lancamentos,
+    balancoTotal,
+    usuario
 }
 
 
